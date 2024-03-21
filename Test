@@ -1,0 +1,72 @@
+!pip install numpy
+!pip install mido
+
+import numpy as np
+import mido
+from mido import MidiFile, MidiTrack, Message
+
+def create_note_matrix(part):
+    # Assuming each part is a string with rows separated by newlines
+    rows = part.strip().split('\n')
+    matrix = np.array([list(map(int, row.split())) for row in rows])
+    return matrix
+
+def matrix_to_midi(matrix, filename='output.mid', tempo=500000):
+    # Create a new MIDI file with one track
+    mid = MidiFile()
+    track = MidiTrack()
+    mid.tracks.append(track)
+
+    # Set tempo
+    track.append(mido.MetaMessage('set_tempo', tempo=tempo))
+
+    # Add notes for each part
+    for part_number, part_matrix in enumerate(matrix):
+        last_step = 0
+        for step, row in enumerate(part_matrix.T):  # Transpose to iterate over columns
+            for pitch, velocity in enumerate(row):
+                if velocity > 0:  # Note on
+                    # Adjust the note to fit the instrument range
+                    note = pitch + 36 if part_number == 0 else pitch + 48
+                    track.append(Message('note_on', note=note, velocity=64, time=step-last_step))
+                    last_step = step
+                elif velocity < 0:  # Note off
+                    note = pitch + 36 if part_number == 0 else pitch + 48
+                    track.append(Message('note_off', note=note, velocity=0, time=step-last_step))
+                    last_step = step
+
+    # Save the MIDI file
+    mid.save(filename)
+
+# Example usage:
+# Define the parts as strings
+drums = """
+0 1 1 0 0 0 0 0
+0 2 2 0 0 0 0 0
+0 3 3 0 0 0 0 0
+0 4 4 0 0 0 0 0
+"""
+bass = """
+0 1 2 0 0 0 0 0
+0 2 3 0 0 0 0 0
+0 3 4 0 0 0 0 0
+0 4 5 0 0 0 0 0
+"""
+synths = """
+0 1 0 0 0 0 0 0
+0 2 0 0 0 0 0 0
+0 3 0 0 0 0 0 0
+0 4 0 0 0 0 0 0
+"""
+guitar = """
+0 1 2 0 0 0 0 0
+0 2 3 0 0 0 0 0
+0 3 4 0 0 0 0 0
+0 4 5 0 0 0 0 0
+"""
+
+# Convert each part to a note matrix
+note_matrices = [create_note_matrix(part) for part in [drums, bass, synths, guitar]]
+
+# Convert to MIDI
+matrix_to_midi(note_matrices)
